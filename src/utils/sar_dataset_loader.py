@@ -9,18 +9,30 @@ from PIL import Image
 
 
 class BasicDataset(Dataset):
-    def __init__(self, dataset_dir):
-        self.dataset_dir = dataset_dir
-        data = np.load(self.dataset_dir + "img_clean_pats.npy", allow_pickle=True)
-        self.data_x = data[:,:,:,0]
-        self.data_y = data[:,:,:,2]
-        print(self.data_x.shape)
-        print(self.data_y.shape)
-        self.data_x = np.reshape(self.data_x, (self.data_x.shape[0], 1, 572, 572))
-        self.data_y = np.reshape(self.data_y, (self.data_x.shape[0], 1, 572, 572))
-        print(self.data_x.shape)
+    def __init__(self, root_dir = "./data/dataset/", channel = 'VV' train = True):
+        self.dataset_dir = root_dir
+        self.channel = channel
+        if Train:
+            self.dataset_dir += "train/"
+        else:
+            self.dataset_dir += "train/"
+        self.ids = [splitext(file)[0] for file in listdir(root_dir)
+                    if not file.startswith('.')]
+        logging.info(f'Creating dataset with {len(self.ids)} examples')
+
     def __len__(self):
-        return self.data_x.shape[0]
+        return len(self.ids)
 
     def __getitem__(self, i):
-        return {'image': torch.from_numpy(self.data_x[i]), 'mask': torch.from_numpy(self.data_y[i])}
+        idx = self.ids[i]
+        patch_file = glob(self.root_dir + idx  + '*')
+        assert len(patch_file) == 1, \
+            f'Either no patch or multiple patchs found for the ID {idx}: {data_file}'
+        patch = np.load(patch_file, allow_pickle=True)
+        mask = np.reshape(patch[:,:,2],(1,572,572))
+        img = np.reshape(patch[:,:,0],(1,572,572))
+        if self.channel = 'VH':
+            img = np.reshape(data[:,:,1],(1,572,572))
+        elif self.channel = 'VVVH':
+            img = np.reshape(data[:,:,0:2],(2,572,572))
+        return {'image': torch.from_numpy(img), 'mask': torch.from_numpy(mask)}
