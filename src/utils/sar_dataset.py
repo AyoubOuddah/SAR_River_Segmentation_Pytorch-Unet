@@ -6,9 +6,9 @@ import numpy as np
 
 class SarDataset():
     #PATCH_SIZE = 32
-    INPUT_PATH = "./Raw_DATA/"#"./drive/My Drive/Raw_DATA"
-    EXTRACTION_PATH = "./Ext_DATA/"
-    NORMALIZATION_PATH = "./Nor_DATA/"
+    INPUT_PATH = "../data/Raw_DATA/"#"./drive/My Drive/Raw_DATA"
+    EXTRACTION_PATH = "../data/Ext_DATA/"
+    NORMALIZATION_PATH = "../data/Nor_DATA/"
 
     data_counter = 0
 

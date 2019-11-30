@@ -4,13 +4,13 @@ import random
 import os
 import numpy as np
 
-basedir = '.'
+basedir = '../data'
 
 DATA_AUG_TIMES = 8  # transform a sample to a different sample for DATA_AUG_TIMES times
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--src_dir', dest='src_dir', default="%s/Nor_DATA" % basedir, help='dir of data') # check
-parser.add_argument('--save_dir', dest='save_dir', default="%s/data/" % basedir, help='dir of patches')
+parser.add_argument('--save_dir', dest='save_dir', default="%s/dataset/" % basedir, help='dir of patches')
 parser.add_argument('--patch_size', dest='pat_size', type=int, default=572, help='patch size') # check
 parser.add_argument('--stride', dest='stride', type=int, default=286, help='stride') # check
 parser.add_argument('--step', dest='step', type=int, default=0, help='step')
