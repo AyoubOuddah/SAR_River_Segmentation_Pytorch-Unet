@@ -13,10 +13,10 @@ from eval import eval_net
 from unet import UNet
 
 from torch.utils.tensorboard import SummaryWriter
-from utils.dataset import BasicDataset
+from utils.sar_dataset_loader import BasicDataset
 from torch.utils.data import DataLoader, random_split
 
-dataset_dir = '/content/drive/My Drive/Test_DataSet/' #'/content/drive/My Drive/Data_Set/'
+dataset_dir = './data/dataset/'
 dir_checkpoint = './model_checkpoints/'
 
 
@@ -29,7 +29,7 @@ def train_net(net,
               save_cp=True,
               img_scale=0.5):
 
-    dataset = BasicDataset(dataset_dir)
+    dataset = BasicDataset(dataset_dir, channel = 'VV', train = True)
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
@@ -52,7 +52,8 @@ def train_net(net,
 
     optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8)
     if net.n_classes > 1:
-        criterion = nn.CrossEntropyLoss()
+        wei = torch.tensor([0.1,0.9])
+        criterion = nn.CrossEntropyLoss(weight=wei)
     else:
         criterion = nn.BCEWithLogitsLoss()
 
@@ -87,7 +88,7 @@ def train_net(net,
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-
+                print(loss)
                 pbar.update(imgs.shape[0])
                 global_step += 1
                 if global_step % (len(dataset) // (10 * batch_size)) == 0:
