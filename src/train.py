@@ -29,7 +29,7 @@ def train_net(net,
               save_cp=True,
               img_scale=0.5):
 
-    dataset = BasicDataset(dataset_dir, channel = 'VV', train = True)
+    dataset = BasicDataset(dataset_dir, channels = 'VV', train = True, )
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
@@ -52,8 +52,9 @@ def train_net(net,
 
     optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8)
     if net.n_classes > 1:
-        wei = torch.tensor([0.1,0.9])
-        criterion = nn.CrossEntropyLoss(weight=wei)
+        #wei = torch.tensor([0.1,0.9])
+        #criterion = nn.CrossEntropyLoss(weight=wei)
+        criterion = nn.CrossEntropyLoss()
     else:
         criterion = nn.BCEWithLogitsLoss()
 

@@ -30,15 +30,15 @@ class BasicDataset(Dataset):
         newW, newH = int(self.scale * w), int(self.scale * h)
         assert newW > 0 and newH > 0, 'Scale is too small'
 
-        img = resize(img, (newH, newW))
+        patch = resize(patch, (newH, newW))
 
-        if len(img_nd.shape) == 2:
-            img_nd = np.expand_dims(img_nd, axis=2)
+        if len(patch.shape) == 2:
+            patch = np.expand_dims(patch, axis=2)
 
         # HWC to CHW
-        img_trans = img_nd.transpose((2, 0, 1))
+        patch = patch.transpose((2, 0, 1))
 
-        return img_trans
+        return patch
 
     def __getitem__(self, i):
         idx = self.ids[i]
@@ -48,9 +48,9 @@ class BasicDataset(Dataset):
 
         mask = patch[:,:,2]
         img = patch[:,:,0]
-        if self.channels == 'VH'
+        if self.channels == 'VH':
             img = patch[:,:,1]
-        elif self.channels == 'VVVH'
+        elif self.channels == 'VVVH':
             img = patch[:,:,0:2]
         img = self.preprocess(img)
         mask = self.preprocess(mask)
