@@ -3,6 +3,7 @@ import glob
 import random
 import os
 import numpy as np
+from skimage.transform import resize
 
 basedir = '../data'
 
@@ -10,11 +11,11 @@ DATA_AUG_TIMES = 8  # transform a sample to a different sample for DATA_AUG_TIME
 
 parser = argparse.ArgumentParser(description='')
 parser.add_argument('--src_dir', dest='src_dir', default="%s/Nor_DATA" % basedir, help='dir of data') # check
-parser.add_argument('--save_dir', dest='save_dir', default="%s/dataset/" % basedir, help='dir of patches')
+parser.add_argument('--save_dir', dest='save_dir', default="%s/dataset/test/" % basedir, help='dir of patches')
 parser.add_argument('--patch_size', dest='pat_size', type=int, default=572, help='patch size') # check
 parser.add_argument('--stride', dest='stride', type=int, default=286, help='stride') # check
 parser.add_argument('--step', dest='step', type=int, default=0, help='step')
-parser.add_argument('--batch_size', dest='bat_size', type=int, default=16, help='batch size') # check
+parser.add_argument('--batch_size', dest='bat_size', type=int, default=4, help='batch size') # check
 # check output arguments
 parser.add_argument('--from_file', dest='from_file', default="%s/data/img_clean_pats.npy" % basedir, help='get pic from file')
 parser.add_argument('--num_pic', dest='num_pic', type=int, default=10, help='number of pic to pick')
@@ -63,6 +64,14 @@ def generate_patches(isDebug=False):
         img = np.load(filepaths[i])
         im_h = np.size(img, 0)
         im_w = np.size(img, 1)
+        if im_h < args.pat_size:
+          img = resize(img, (args.pat_size+1, im_w))
+          im_h = np.size(img, 0)
+
+        if im_w < args.pat_size:
+          img = resize(img, (im_w, args.pat_size+1))
+          im_w = np.size(img, 1)
+
         for x in range(0 + args.step, (im_h - args.pat_size), args.stride):
             for y in range(0 + args.step, (im_w - args.pat_size), args.stride):
                 count += 1
@@ -85,6 +94,15 @@ def generate_patches(isDebug=False):
     # generate patches
     for i in range(len(filepaths)): #prima scorre le immagini
         img = np.load(filepaths[i])
+        im_h = np.size(img, 0)
+        im_w = np.size(img, 1)
+        if im_h < args.pat_size:
+          img = resize(img, (args.pat_size+1, im_w))
+          im_h = np.size(img, 0)
+
+        if im_w < args.pat_size:
+          img = resize(img, (im_w, args.pat_size+1))
+          im_w = np.size(img, 1)
         img_s = img
         img_s = np.reshape(np.array(img_s, dtype="float32"),
                               (np.size(img_s, 0), np.size(img_s, 1), 3))  # extend one dimension
