@@ -16,23 +16,32 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.sar_dataset_loader import BasicDataset
 from torch.utils.data import DataLoader, random_split
 
-dataset_dir = './data/dataset/'
+dataset_dir = '/content/drive/My Drive/dataset/'
 dir_checkpoint = './model_checkpoints/'
 
 
 def train_net(net,
               device,
+              optimizer,
+              criterion,
+              e=0,
               epochs=5,
               batch_size=1,
               lr=0.1,
               val_percent=0.1,
               save_cp=True,
-              img_scale=0.5):
-
-    dataset = BasicDataset(dataset_dir, channels = 'VV', train = True, )
-    n_val = int(len(dataset) * val_percent)
-    n_train = len(dataset) - n_val
-    train, val = random_split(dataset, [n_train, n_val])
+              img_scale=0.5,
+              train=None,
+              val=None):
+    
+    if train is None or val is None:
+        dataset = BasicDataset(dataset_dir, channels='VV', train=True, )
+        n_val = int(len(dataset) * val_percent)
+        n_train = len(dataset) - n_val
+        train, val = random_split(dataset, [n_train, n_val])
+    else: 
+        n_train = len(train)
+        n_val = len(val)
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
@@ -49,16 +58,7 @@ def train_net(net,
         Device:          {device.type}
         Images scaling:  {img_scale}
     ''')
-
-    optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8)
-    if net.n_classes > 1:
-        #wei = torch.tensor([0.1,0.9])
-        #criterion = nn.CrossEntropyLoss(weight=wei)
-        criterion = nn.CrossEntropyLoss()
-    else:
-        criterion = nn.BCEWithLogitsLoss()
-
-    for epoch in range(epochs):
+    for epoch in range(e, epochs):
         net.train()
 
         epoch_loss = 0
@@ -92,7 +92,7 @@ def train_net(net,
                 print(loss)
                 pbar.update(imgs.shape[0])
                 global_step += 1
-                if global_step % (len(dataset) // (10 * batch_size)) == 0:
+                if global_step % ((n_train + n_val) // (10 * batch_size)) == 0:#(len(dataset) // (10 * batch_size)) == 0:
                     val_score = eval_net(net, val_loader, device, n_val)
                     if net.n_classes > 1:
                         logging.info('Validation cross entropy: {}'.format(val_score))
@@ -113,7 +113,13 @@ def train_net(net,
                 logging.info('Created checkpoint directory')
             except OSError:
                 pass
-            torch.save(net.state_dict(),dir_checkpoint + "CP_epoch_" + str(epoch+1) + ".pth")
+            torch.save({
+                'epoch': (epoch+1),
+                'model_state_dict': net.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'criterion': criterion,
+                'train': train,
+                'val': val}, dir_checkpoint + "CP_epoch_" + str(epoch + 1) + ".pth")
             logging.info(f'Checkpoint {epoch + 1} saved !')
 
     writer.close()
@@ -134,7 +140,8 @@ def get_args():
                         help='Downscaling factor of the images')
     parser.add_argument('-v', '--validation', dest='val', type=float, default=10.0,
                         help='Percent of the data that is used as validation (0-100)')
-
+    parser.add_argument('-W', '--weights', nargs='+', type=float, default=[1],
+                        help='wights used for the imbalenced data', dest='weights')
     return parser.parse_args()
 
 
@@ -150,30 +157,56 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-    net = UNet(n_channels=1, n_classes=1)
+    myNet = UNet(n_channels=1, n_classes=1)
+
     logging.info(f'Network:\n'
-                 f'\t{net.n_channels} input channels\n'
-                 f'\t{net.n_classes} output channels (classes)\n'
-                 f'\t{"Bilinear" if net.bilinear else "Dilated conv"} upscaling')
+                 f'\t{myNet.n_channels} input channels\n'
+                 f'\t{myNet.n_classes} output channels (classes)\n'
+                 f'\t{"Bilinear" if myNet.bilinear else "Dilated conv"} upscaling')
 
+
+    myNet.to(device=device)
+    #myOptimizer = optim.RMSprop(myNet.parameters(), lr=args.lr, weight_decay=1e-8)
+    myOptimizer = optim.Adam(myNet.parameters(), lr=args.lr, eps=1e-08, weight_decay=1e-8)
+    if myNet.n_classes > 1:
+        myCriterion = nn.CrossEntropyLoss()
+    else:
+        weights = torch.from_numpy(np.asarray(args.weights)).to(device)
+        myCriterion = nn.BCEWithLogitsLoss(weight=weights)
+    myEpoch = 0
+    myTrainSet = None
+    myValSet = None
     if args.load:
-        net.load_state_dict(
-            torch.load(args.load, map_location=device)
-        )
+        checkpoint = torch.load(args.load)
+        myNet.load_state_dict(
+            checkpoint['model_state_dict'])
         logging.info(f'Model loaded from {args.load}')
+        myOptimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        logging.info(f'Optimizer loaded from {args.load}')
+        myCriterion = checkpoint['criterion']
+        logging.info(f'criterion loaded from {args.load}')
+        myEpoch = checkpoint['epoch']
+        logging.info(f'current epoch {myEpoch}')
+        myTrainSet = checkpoint['train']
+        myValSet = checkpoint['val']
 
-    net.to(device=device)
     # faster convolutions, but more memory
     # cudnn.benchmark = True
 
 try:
-    train_net(net=net,
+    train_net(net=myNet,
+              device=device,
+              optimizer=myOptimizer,
+              criterion=myCriterion,
+              e=myEpoch,
               epochs=args.epochs,
               batch_size=args.batchsize,
               lr=args.lr,
-              device=device,
               img_scale=args.scale,
-              val_percent=args.val / 100)
+              val_percent=args.val / 100,
+              train=myTrainSet,
+              val=myValSet)
+
 except KeyboardInterrupt:
     torch.save(net.state_dict(), 'INTERRUPTED.pth')
     logging.info('Saved interrupt')

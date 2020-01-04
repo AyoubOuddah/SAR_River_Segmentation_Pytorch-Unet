@@ -9,7 +9,7 @@ class SarDataset():
     INPUT_PATH = "../data/Raw_DATA/"#"./drive/My Drive/Raw_DATA"
     EXTRACTION_PATH = "../data/Ext_DATA/"
     NORMALIZATION_PATH = "../data/Nor_DATA/"
-
+    DATASET_PATH = "/content/drive/My Drive/dataset/train/"
     data_counter = 0
 
     mean_vv = 0
@@ -66,3 +66,18 @@ class SarDataset():
                     np.save(self.NORMALIZATION_PATH + file_name + ".npy", data_to_save)
                 except Exception as e:
                     print(e)
+    
+    def compute_dataSet_wight(self):
+        patch_counter = 0 
+        fg_pixel_counter = 0
+        for f in tqdm(os.listdir(self.DATASET_PATH)):
+            if "npy" in f:
+                try:
+                    path = os.path.join(self.DATASET_PATH, f)
+                    data = np.load(path)
+                    mask = data[:,:,2]
+                    fg_pixel_counter += np.sum(mask)
+                    patch_counter += 1
+                except Exception as e:
+                    print(e)
+        return (((patch_counter * 572 * 572) - fg_pixel_counter) / fg_pixel_counter)
