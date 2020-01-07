@@ -33,13 +33,12 @@ def train_net(net,
               img_scale=0.5,
               train=None,
               val=None):
-    
     if train is None or val is None:
-        dataset = BasicDataset(dataset_dir, channels='VV', train=True, )
+        dataset = BasicDataset(dataset_dir, channels='VVVH', train=True, )
         n_val = int(len(dataset) * val_percent)
         n_train = len(dataset) - n_val
         train, val = random_split(dataset, [n_train, n_val])
-    else: 
+    else:
         n_train = len(train)
         n_val = len(val)
     train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
@@ -78,7 +77,6 @@ def train_net(net,
 
                 imgs = imgs.to(device=device, dtype=torch.float32)
                 true_masks = true_masks.to(device=device, dtype=torch.float32)
-
                 masks_pred = net(imgs)
                 loss = criterion(masks_pred, true_masks)
                 epoch_loss += loss.item()
@@ -89,10 +87,10 @@ def train_net(net,
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                print(loss)
                 pbar.update(imgs.shape[0])
                 global_step += 1
-                if global_step % ((n_train + n_val) // (10 * batch_size)) == 0:#(len(dataset) // (10 * batch_size)) == 0:
+                if global_step % (
+                        (n_train + n_val) // (10 * batch_size)) == 0:  # (len(dataset) // (10 * batch_size)) == 0:
                     val_score = eval_net(net, val_loader, device, n_val)
                     if net.n_classes > 1:
                         logging.info('Validation cross entropy: {}'.format(val_score))
@@ -101,7 +99,7 @@ def train_net(net,
                     else:
                         logging.info('Validation Dice Coeff: {}'.format(val_score))
                         writer.add_scalar('Dice/test', val_score, global_step)
-                    writer.add_images('images', imgs[:, 0, :, :], global_step)
+                    writer.add_images('images', (imgs[:, 0, :, :]).view(-1, 1, 572, 572), global_step)
                     if net.n_classes == 1:
                         writer.add_images('masks/true', true_masks, global_step)
                         writer.add_images('masks/pred', torch.sigmoid(masks_pred) > 0.5, global_step)
@@ -113,7 +111,7 @@ def train_net(net,
             except OSError:
                 pass
             torch.save({
-                'epoch': (epoch+1),
+                'epoch': (epoch + 1),
                 'model_state_dict': net.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'criterion': criterion,
@@ -156,16 +154,15 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-    myNet = UNet(n_channels=1, n_classes=1)
+    myNet = UNet(n_channels=2, n_classes=1)
 
     logging.info(f'Network:\n'
                  f'\t{myNet.n_channels} input channels\n'
                  f'\t{myNet.n_classes} output channels (classes)\n'
                  f'\t{"Bilinear" if myNet.bilinear else "Dilated conv"} upscaling')
 
-
     myNet.to(device=device)
-    #myOptimizer = optim.RMSprop(myNet.parameters(), lr=args.lr, weight_decay=1e-8)
+    # myOptimizer = optim.RMSprop(myNet.parameters(), lr=args.lr, weight_decay=1e-8)
     myOptimizer = optim.Adam(myNet.parameters(), lr=args.lr, eps=1e-08, weight_decay=1e-8)
     if myNet.n_classes > 1:
         myCriterion = nn.CrossEntropyLoss()
@@ -190,7 +187,7 @@ if __name__ == '__main__':
         myValSet = checkpoint['val']
 
     # faster convolutions, but more memory
-    # cudnn.benchmark = True
+    #cudnn.benchmark = True
 
 try:
     train_net(net=myNet,
@@ -207,7 +204,7 @@ try:
               val=myValSet)
 
 except KeyboardInterrupt:
-    torch.save(net.state_dict(), 'INTERRUPTED.pth')
+    torch.save(myNet.state_dict(), 'INTERRUPTED.pth')
     logging.info('Saved interrupt')
     try:
         sys.exit(0)
