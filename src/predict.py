@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 from unet import UNet
 from utils.data_vis import plot_img_and_mask
-from utils.dataset import BasicDataset
+from utils.sar_dataset_loader import BasicDataset
 from utils.crf import dense_crf
 
 
@@ -21,15 +21,14 @@ def predict_img(net,
                 out_threshold=0.5,
                 use_dense_crf=False):
     net.eval()
-
-    ds = BasicDataset('', '', scale=scale_factor)
-    img = ds.preprocess(full_img)
-
-    img = img.unsqueeze(0)
-    img = img.to(device=device, dtype=torch.float32)
-
+    ds = BasicDataset(scale=scale_factor)
+    patch = ds.preprocess(full_img)
+    patch = torch.from_numpy(patch)
+    patch = patch.to(device=device, dtype=torch.float32)
+    patch = patch.unsqueeze(0)
+    print("patch size ===> ", patch.size())
     with torch.no_grad():
-        output = net(img)
+        output = net(patch)
 
         if net.n_classes > 1:
             probs = F.softmax(output, dim=1)
@@ -77,8 +76,10 @@ def get_args():
                         default=0.5)
     parser.add_argument('--scale', '-s', type=float,
                         help="Scale factor for the input images",
-                        default=0.5)
-
+                        default=1)
+    parser.add_argument('--chennel', '-c', type=int,
+                        help="number of channels in the patch",
+                        default=1)
     return parser.parse_args()
 
 
@@ -108,22 +109,27 @@ if __name__ == "__main__":
     in_files = args.input
     out_files = get_output_filenames(args)
 
-    net = UNet(n_channels=3, n_classes=1)
+    net = UNet(n_channels=args.chennel, n_classes=1)
 
     logging.info("Loading model {}".format(args.model))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     logging.info(f'Using device {device}')
     net.to(device=device)
-    net.load_state_dict(torch.load(args.model, map_location=device))
+    checkpoint = torch.load(args.model)
+    net.load_state_dict(
+            checkpoint['model_state_dict'])
+    #net.load_state_dict(torch.load(args.model, map_location=device))
 
     logging.info("Model loaded !")
 
     for i, fn in enumerate(in_files):
         logging.info("\nPredicting image {} ...".format(fn))
 
-        img = Image.open(fn)
+        #img = Image.open(fn)
+        img = np.load(fn, allow_pickle=True)
 
+        img =  img[:,:,0:args.chennel]
         mask = predict_img(net=net,
                            full_img=img,
                            scale_factor=args.scale,
