@@ -22,10 +22,18 @@ def eval_net(net, loader, device):
             imgs = imgs.to(device=device, dtype=torch.float32)
             true_masks = true_masks.to(device=device, dtype=torch.float32)
 
-            mask_pred = net(imgs).cpu().detach().numpy()
-            mask_pred = (mask_pred > 0.5)
+            mask_pred = net(imgs)
+
+            mask_pred = net(imgs)
+            mask_pred = (mask_pred > 0.5).int()
             correct = (true_masks == mask_pred)
-    return np.sum(correct) / len(loader)
+            tot += torch.sum(correct).item()
+    return tot / (len(loader) * 572 * 572)
+
+    #        mask_pred = net(imgs).cpu().detach().numpy()
+    #        mask_pred = (mask_pred > 0.5)
+    #        correct = (true_masks == mask_pred)
+    #return np.sum(correct) / len(loader)
 
 
 def get_args():
