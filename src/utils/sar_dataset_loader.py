@@ -17,10 +17,12 @@ class BasicDataset(Dataset):
             self.dataset_dir += "train/"
         else:
             self.dataset_dir += "test/"
-
-        self.ids = [splitext(file)[0] for file in listdir(self.dataset_dir)
+        try:
+            self.ids = [splitext(file)[0] for file in listdir(self.dataset_dir)
                     if not file.startswith('.')]
-        logging.info(f'Creating dataset with {len(self.ids)} examples')
+            logging.info(f'Creating dataset with {len(self.ids)} examples')
+        except FileNotFoundError:
+            print("Wrong file or file path")
     def __len__(self):
         return len(self.ids)
 

@@ -9,6 +9,8 @@ from unet import UNet
 from utils.sar_dataset_loader import BasicDataset
 
 
+dataset_dir = './data/dataset/' #execute from drive ==> '/content/drive/My Drive/dataset/'
+
 def eval_net(net, loader, device):
     """Evaluation without the densecrf with the dice coefficient"""
     net.eval()
@@ -39,10 +41,6 @@ def eval_net(net, loader, device):
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument('--path', '-p', default='/content/drive/My Drive/dataset/',
-                        metavar='FILE',
-                        help="Specify the path to the dataset")
 
     parser.add_argument('--model', '-m', default='MODEL.pth',
                         metavar='FILE',
@@ -82,9 +80,9 @@ if __name__ == "__main__":
     logging.info("Model loaded !")
 
     if args.chennel == 1:
-        testSet = BasicDataset(args.path, channels='VV', train=False, scale=args.scale)
+        testSet = BasicDataset(dataset_dir, channels='VV', train=False, scale=args.scale)
     else:
-        testSet = BasicDataset(args.path, channels='VVVH', train=False, scale=args.scale)
+        testSet = BasicDataset(dataset_dir, channels='VVVH', train=False, scale=args.scale)
 
     myLoader = DataLoader(testSet, batch_size=args.batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
