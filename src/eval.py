@@ -9,7 +9,7 @@ def eval_net(net, loader, device, n_val):
     """Evaluation without the densecrf with the dice coefficient"""
     net.eval()
     tot = 0
-
+    confMatrix = np.zeros((2,2))
     with tqdm(total=n_val, desc='Validation round', unit='img', leave=False) as pbar:
         for batch in loader:
             imgs = batch['image']

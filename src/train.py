@@ -104,7 +104,7 @@ def train_net(net,
                         writer.add_images('masks/true', true_masks, global_step)
                         writer.add_images('masks/pred', torch.sigmoid(masks_pred) > 0.5, global_step)
 
-        if save_cp:
+        if save_cp and ((epoch + 1) % 5 == 0):
             try:
                 os.mkdir(dir_checkpoint)
                 logging.info('Created checkpoint directory')
