@@ -154,7 +154,7 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-    myNet = UNet(n_channels=2, n_classes=1)
+    myNet = UNet(n_channels=1, n_classes=1)
 
     logging.info(f'Network:\n'
                  f'\t{myNet.n_channels} input channels\n'
@@ -163,7 +163,7 @@ if __name__ == '__main__':
 
     myNet.to(device=device)
     # myOptimizer = optim.RMSprop(myNet.parameters(), lr=args.lr, weight_decay=1e-8)
-    myOptimizer = optim.Adam(myNet.parameters(), lr=args.lr, eps=1e-08, weight_decay=1e-8)
+    myOptimizer = optim.Adam(myNet.parameters(), lr=args.lr, eps=1e-08)
     if myNet.n_classes > 1:
         myCriterion = nn.CrossEntropyLoss()
     else:
