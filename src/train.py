@@ -16,7 +16,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.sar_dataset_loader import BasicDataset
 from torch.utils.data import DataLoader, random_split
 
-dataset_dir = './data/dataset/' #execute from drive ==> '/content/drive/My Drive/dataset/'
+dataset_dir = '/content/drive/My Drive/dataset/'
 dir_checkpoint = './model_checkpoints/'
 
 
@@ -34,7 +34,7 @@ def train_net(net,
               train=None,
               val=None):
     if train is None or val is None:
-        dataset = BasicDataset(dataset_dir, channels='VVVH', train=True, )
+        dataset = BasicDataset(dataset_dir, channels='VV', train=True, )
         n_val = int(len(dataset) * val_percent)
         n_train = len(dataset) - n_val
         train, val = random_split(dataset, [n_train, n_val])
@@ -91,7 +91,7 @@ def train_net(net,
                 global_step += 1
                 if global_step % (
                         (n_train + n_val) // (10 * batch_size)) == 0:  # (len(dataset) // (10 * batch_size)) == 0:
-                    val_score, acc_score, pres_score, jacc_score, recall_score, f1_score = eval_net(net, val_loader, device, n_val)
+                    val_score, acc_score, pres_score, recall_score, f1_score = eval_net(net, val_loader, device, n_val)
                     if net.n_classes > 1:
                         logging.info('Validation cross entropy: {}'.format(val_score))
                         writer.add_scalar('Loss/test', val_score, global_step)
@@ -101,14 +101,12 @@ def train_net(net,
                         logging.info('Validation Dice Coeff: {}'.format(val_score))
                         logging.info('Validation Accuracy: {}'.format(acc_score))
                         logging.info('Validation Presision: {}'.format(pres_score))
-                        logging.info('Validation Jaccard: {}'.format(jacc_score))
                         logging.info('Validation Recall: {}'.format(recall_score))
                         logging.info('Validation f1_score: {}'.format(f1_score))
 
                         writer.add_scalar('Dice/test', val_score, global_step)
                         writer.add_scalar('Accuracu/test', acc_score, global_step)
                         writer.add_scalar('Presision/test', pres_score, global_step)
-                        writer.add_scalar('Jaccard/test', jacc_score, global_step)
                         writer.add_scalar('Recall/test', recall_score, global_step)
                         writer.add_scalar('f1_score/test', f1_score, global_step)
 
