@@ -91,14 +91,27 @@ def train_net(net,
                 global_step += 1
                 if global_step % (
                         (n_train + n_val) // (10 * batch_size)) == 0:  # (len(dataset) // (10 * batch_size)) == 0:
-                    val_score = eval_net(net, val_loader, device, n_val)
+                    val_score, acc_score, pres_score, jacc_score, recall_score, f1_score = eval_net(net, val_loader, device, n_val)
                     if net.n_classes > 1:
                         logging.info('Validation cross entropy: {}'.format(val_score))
                         writer.add_scalar('Loss/test', val_score, global_step)
 
                     else:
+
                         logging.info('Validation Dice Coeff: {}'.format(val_score))
+                        logging.info('Validation Accuracy: {}'.format(acc_score))
+                        logging.info('Validation Presision: {}'.format(pres_score))
+                        logging.info('Validation Jaccard: {}'.format(jacc_score))
+                        logging.info('Validation Recall: {}'.format(recall_score))
+                        logging.info('Validation f1_score: {}'.format(f1_score))
+
                         writer.add_scalar('Dice/test', val_score, global_step)
+                        writer.add_scalar('Accuracu/test', acc_score, global_step)
+                        writer.add_scalar('Presision/test', pres_score, global_step)
+                        writer.add_scalar('Jaccard/test', jacc_score, global_step)
+                        writer.add_scalar('Recall/test', recall_score, global_step)
+                        writer.add_scalar('f1_score/test', f1_score, global_step)
+
                     writer.add_images('images', (imgs[:, 0, :, :]).view(-1, 1, 572, 572), global_step)
                     if net.n_classes == 1:
                         writer.add_images('masks/true', true_masks, global_step)
