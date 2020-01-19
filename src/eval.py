@@ -15,30 +15,11 @@ def eval_net(net, loader, device, n_val):
     """Evaluation without the densecrf with the dice coefficient"""
     net.eval()
     tot = 0
-    jacc_score = 0
-    acc_score = 0
-    recall_score = 0
-    jacc_score = 0
-    f1_score = 0
-    pres_score = 0
-    confMat = np.zeros((2,2))
-import torch
-import torch.nn.functional as F
-from tqdm import tqdm
-
-from dice_loss import dice_coeff
-
-
-def eval_net(net, loader, device, n_val):
-    """Evaluation without the densecrf with the dice coefficient"""
-    net.eval()
-    tot = 0
     acc_score = 0
     rec_score = 0
     f1_score = 0
     pres_score = 0
     jacc_score = 0
-    confMat = np.zeros((2, 2))
     with tqdm(total=n_val, desc='Validation round', unit='img', leave=False) as pbar:
         for batch in loader:
             imgs = batch['image']
@@ -79,4 +60,3 @@ def eval_net(net, loader, device, n_val):
     else:
       f1_score = 0
     return tot, jacc_score, acc_score, pres_score, rec_score, f1_score
-                    

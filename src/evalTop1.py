@@ -1,63 +1,80 @@
-import argparse
-import logging
-import os
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
+import numpy as np
+
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import precision_score
+from sklearn.metrics import jaccard_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import f1_score
+from dice_loss import dice_coeff
+
+import argparse
+import logging
+import os
 from torch.utils.data import DataLoader
 from unet import UNet
 from utils.sar_dataset_loader import BasicDataset
-from utils.perMes import *
 
-dataset_dir = './data/dataset/'  # execute from drive ==> '/content/drive/My Drive/dataset/'
+dataset_dir = '/content/drive/My Drive/dataset/'
 
 
-def eval_net(net, loader, device):
+def eval_net(net, loader, device, batch_size):
     """Evaluation without the densecrf with the dice coefficient"""
     net.eval()
     tot = 0
-    confMat = np.zeros((2, 2))  # make it n_class X n_class to generate
-    # confMat.to(device=device, dtype=torch.float64)
-    # with tqdm(total=len(loader), desc='Performance evaluation Score TOP-1', unit='Patch', leave=False) as pbar:
+    acc_score = 0
+    rec_score = 0
+    f1_score = 0
+    pres_score = 0
+    jacc_score = 0
+
     for batch in loader:
-        print("------- new batch!! --------")
         imgs = batch['image']
         true_masks = batch['mask']
+
         imgs = imgs.to(device=device, dtype=torch.float32)
-        # true_masks = true_masks.to(device=device, dtype=torch.float32)
+        mask_type = torch.float32 if net.n_classes == 1 else torch.long
+        true_masks = true_masks.to(device=device, dtype=mask_type)
+
         mask_pred = net(imgs)
-        # mask_pred = mask_pred.detach().cpu().numpy()
-        mask_pred = (mask_pred > 0.5).int().detach().cpu().numpy()
-        # torch.cuda.synchronize()
-        for idx in range(true_masks.shape[0]):
-            for i in range(true_masks.shape[2]):
-                for j in range(true_masks.shape[3]):
-                    confMat[int(true_masks[idx, 0, i, j].item()), int(mask_pred[idx, 0, i, j].item())] += 1
-                    tot += 1
-    acc = accuracy(confMat)
-    rec = recall(confMat)
-    pre = precision(confMat)
-    sco = scoreF1(confMat)
 
-    # confMat = confMat / (len(loader) * 572 * 572 * 4)
-    print("conf matrix:")
-    print(confMat)
-    print("sum ==> ", np.sum(confMat))
-    print("total ==> ", tot)
-    print("acc ==> ", acc)
-    print("rec ==> ", rec)
-    print("pre ==> ", pre)
-    print("sco ==> ", sco)
-    return confMat, acc, rec, pre, sco
+        for true_mask, pred in zip(true_masks, mask_pred):
+            pred = (pred > 0.5).float()
+            if net.n_classes > 1:
+                tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0)).item()
+            else:
+                tot += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
+                pred = pred.detach().cpu().numpy()
+                pred = pred.astype(int)
+                pred = np.matrix.flatten(pred)
 
-    # correct = (true_masks == mask_pred)
-    # tot += torch.sum(correct).item()
-    # return tot / (len(loader) * 572 * 572 * 4)
+                true_mask = true_mask.cpu().numpy()
+                true_mask = true_mask.astype(int)
+                true_mask = np.matrix.flatten(true_mask)
 
-    #        mask_pred = net(imgs).cpu().detach().numpy()
-    #        mask_pred = (mask_pred > 0.5)
-    #        correct = (true_masks == mask_pred)
-    # return np.sum(correct) / len(loader)
+                jacc_score += jaccard_score(true_mask, pred)
+                acc_score += accuracy_score(true_mask, pred)
+                pres_score += precision_score(true_mask, pred)
+                rec_score += recall_score(true_mask, pred)
+    tot = (tot / (len(loader) * batch_size))
+    jacc_score = (jacc_score / (len(loader) * batch_size))
+    acc_score = (acc_score / (len(loader) * batch_size))
+    pres_score = (pres_score / (len(loader) * batch_size))
+    rec_score = (rec_score / (len(loader) * batch_size))
+    if (pres_score + rec_score) > 0:
+        f1_score = 2 * (pres_score * rec_score) / (pres_score + rec_score)
+    else:
+        f1_score = 0
+
+    print("Dive : ", tot)
+    print("Jaccard: ", jacc_score)
+    print("Accuracy: ", acc_score)
+    print("Pres :", pres_score)
+    print("Recall: ", rec_score)
+    print("F1_score ", f1_score)
+    return tot, jacc_score, acc_score, pres_score, rec_score, f1_score
 
 
 def get_args():
@@ -109,4 +126,4 @@ if __name__ == "__main__":
 
     myLoader = DataLoader(testSet, batch_size=args.batchsize, shuffle=False, num_workers=8, pin_memory=True)
 
-    eval_net(net=myNet, loader=myLoader, device=myDevice)
+    eval_net(net=myNet, loader=myLoader, device=myDevice, batch_size=args.batchsize)

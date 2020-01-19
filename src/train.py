@@ -90,7 +90,7 @@ def train_net(net,
                 pbar.update(imgs.shape[0])
                 global_step += 1
                 if global_step % (
-                        (n_train + n_val) // (10 * batch_size)) == 0:  # (len(dataset) // (10 * batch_size)) == 0:
+                        (n_train + n_val) // (2 * batch_size)) == 0:  # (len(dataset) // (10 * batch_size)) == 0:
                     val_score, jacc_score, acc_score, pres_score, rec_score, f1_score = eval_net(net, val_loader, device, n_val)
                     if net.n_classes > 1:
                         logging.info('Validation cross entropy: {}'.format(val_score))
