@@ -9,6 +9,7 @@ from sklearn.metrics import jaccard_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import f1_score
 from dice_loss import dice_coeff
+from sklearn.metrics import confusion_matrix
 
 import argparse
 import logging
@@ -30,53 +31,64 @@ def eval_net(net, loader, device, batch_size):
     pres_score = 0
     jacc_score = 0
 
-    for batch in loader:
-        imgs = batch['image']
-        true_masks = batch['mask']
+    trueDetection = np.zeros((10))
+    falseAlarm = np.zeros((10))
+    index  = 0
+    for seuill in range(0.1, 1, 0.1):
+        for batch in loader:
+            imgs = batch['image']
+            true_masks = batch['mask']
 
-        imgs = imgs.to(device=device, dtype=torch.float32)
-        mask_type = torch.float32 if net.n_classes == 1 else torch.long
-        true_masks = true_masks.to(device=device, dtype=mask_type)
+            imgs = imgs.to(device=device, dtype=torch.float32)
+            mask_type = torch.float32 if net.n_classes == 1 else torch.long
+            true_masks = true_masks.to(device=device, dtype=mask_type)
 
-        mask_pred = net(imgs)
+            mask_pred = net(imgs)
 
-        for true_mask, pred in zip(true_masks, mask_pred):
-            pred = (pred > 0.5).float()
-            if net.n_classes > 1:
-                tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0)).item()
-            else:
-                tot += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
-                pred = pred.detach().cpu().numpy()
-                pred = pred.astype(int)
-                pred = np.matrix.flatten(pred)
+            for true_mask, pred in zip(true_masks, mask_pred):
+                pred = (pred > 0.5).float()
+                if net.n_classes > 1:
+                    tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0)).item()
+                else:
+                    tot += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
+                    pred = pred.detach().cpu().numpy()
+                    pred = pred.astype(int)
+                    pred = np.matrix.flatten(pred)
 
-                true_mask = true_mask.cpu().numpy()
-                true_mask = true_mask.astype(int)
-                true_mask = np.matrix.flatten(true_mask)
+                    true_mask = true_mask.cpu().numpy()
+                    true_mask = true_mask.astype(int)
+                    true_mask = np.matrix.flatten(true_mask)
 
-                jacc_score += jaccard_score(true_mask, pred)
-                acc_score += accuracy_score(true_mask, pred)
-                pres_score += precision_score(true_mask, pred)
-                rec_score += recall_score(true_mask, pred)
-    tot = (tot / (len(loader) * batch_size))
-    jacc_score = (jacc_score / (len(loader) * batch_size))
-    acc_score = (acc_score / (len(loader) * batch_size))
-    pres_score = (pres_score / (len(loader) * batch_size))
-    rec_score = (rec_score / (len(loader) * batch_size))
-    if (pres_score + rec_score) > 0:
-        f1_score = 2 * (pres_score * rec_score) / (pres_score + rec_score)
-    else:
-        f1_score = 0
+                    jacc_score += jaccard_score(true_mask, pred)
+                    acc_score += accuracy_score(true_mask, pred)
+                    pres_score += precision_score(true_mask, pred)
+                    rec_score += recall_score(true_mask, pred)
+                    tn, fp, fn, tp = confusion_matrix(true_mask, pred, labels=[0, 1]).ravel()
+                    sum = np.sum(true_mask)
+                    trueDetection[i] += tp/sum
+                    falseAlarm[i] += (tp + fp) / sum
+        trueDetection[i] /= (len(loader) * batch_size)
+        falseAlarm[i] /= (len(loader) * batch_size)
+        tot = (tot / (len(loader) * batch_size))
+        jacc_score = (jacc_score / (len(loader) * batch_size))
+        acc_score = (acc_score / (len(loader) * batch_size))
+        pres_score = (pres_score / (len(loader) * batch_size))
+        rec_score = (rec_score / (len(loader) * batch_size))
+        if (pres_score + rec_score) > 0:
+            f1_score = 2 * (pres_score * rec_score) / (pres_score + rec_score)
+        else:
+            f1_score = 0
 
-    print("Dive : ", tot)
-    print("Jaccard: ", jacc_score)
-    print("Accuracy: ", acc_score)
-    print("Pres :", pres_score)
-    print("Recall: ", rec_score)
-    print("F1_score ", f1_score)
+        print("Seuill :  ", seuill)
+        print("Dice : ", tot)
+        print("Jaccard: ", jacc_score)
+        print("Accuracy: ", acc_score)
+        print("Pres :", pres_score)
+        print("Recall: ", rec_score)
+        print("F1_score ", f1_score)
+    np.save("trueDetection.py", trueDetection)
+    np.save("falseDetection.py", falseDetection)
     return tot, jacc_score, acc_score, pres_score, rec_score, f1_score
-
-
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
