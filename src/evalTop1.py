@@ -18,58 +18,49 @@ from torch.utils.data import DataLoader
 from unet import UNet
 from utils.sar_dataset_loader import BasicDataset
 
-dataset_dir = '/content/drive/My Drive/dataset/'
+dataset_dir = './data/dataset/test/'
 
 
-def eval_net(net, loader, device, batch_size):
+def eval_net(net, loader, device, batch_size, threshold):
     """Evaluation without the densecrf with the dice coefficient"""
     net.eval()
-    tot = 0
+    dice = 0
     acc_score = 0
     rec_score = 0
     f1_score = 0
     pres_score = 0
     jacc_score = 0
 
-    trueDetection = np.zeros((10))
-    falseAlarm = np.zeros((10))
-    index  = 0
-    for seuill in range(0.1, 1, 0.1):
-        for batch in loader:
-            imgs = batch['image']
-            true_masks = batch['mask']
+    for batch in loader:
+        imgs = batch['image']
+        true_masks = batch['mask']
 
-            imgs = imgs.to(device=device, dtype=torch.float32)
-            mask_type = torch.float32 if net.n_classes == 1 else torch.long
-            true_masks = true_masks.to(device=device, dtype=mask_type)
+        imgs = imgs.to(device=device, dtype=torch.float32)
+        mask_type = torch.float32 if net.n_classes == 1 else torch.long
+        true_masks = true_masks.to(device=device, dtype=mask_type)
 
-            mask_pred = net(imgs)
+        mask_pred = net(imgs)
 
-            for true_mask, pred in zip(true_masks, mask_pred):
-                pred = (pred > 0.5).float()
-                if net.n_classes > 1:
-                    tot += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0)).item()
-                else:
-                    tot += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
-                    pred = pred.detach().cpu().numpy()
-                    pred = pred.astype(int)
-                    pred = np.matrix.flatten(pred)
+        for true_mask, pred in zip(true_masks, mask_pred):
+            pred = (pred > threshold).float()
+            if net.n_classes > 1:
+                dice += F.cross_entropy(pred.unsqueeze(dim=0), true_mask.unsqueeze(dim=0)).item()
+            else:
+                dice += dice_coeff(pred, true_mask.squeeze(dim=1)).item()
+                pred = pred.detach().cpu().numpy()
+                pred = pred.astype(int)
+                pred = np.matrix.flatten(pred)
 
-                    true_mask = true_mask.cpu().numpy()
-                    true_mask = true_mask.astype(int)
-                    true_mask = np.matrix.flatten(true_mask)
+                true_mask = true_mask.cpu().numpy()
+                true_mask = true_mask.astype(int)
+                true_mask = np.matrix.flatten(true_mask)
 
-                    jacc_score += jaccard_score(true_mask, pred)
-                    acc_score += accuracy_score(true_mask, pred)
-                    pres_score += precision_score(true_mask, pred)
-                    rec_score += recall_score(true_mask, pred)
-                    tn, fp, fn, tp = confusion_matrix(true_mask, pred, labels=[0, 1]).ravel()
-                    sum = np.sum(true_mask)
-                    trueDetection[i] += tp/sum
-                    falseAlarm[i] += (tp + fp) / sum
-        trueDetection[i] /= (len(loader) * batch_size)
-        falseAlarm[i] /= (len(loader) * batch_size)
-        tot = (tot / (len(loader) * batch_size))
+                jacc_score += jaccard_score(true_mask, pred)
+                acc_score += accuracy_score(true_mask, pred)
+                pres_score += precision_score(true_mask, pred)
+                rec_score += recall_score(true_mask, pred)
+
+        dice = (dice / (len(loader) * batch_size))
         jacc_score = (jacc_score / (len(loader) * batch_size))
         acc_score = (acc_score / (len(loader) * batch_size))
         pres_score = (pres_score / (len(loader) * batch_size))
@@ -79,16 +70,14 @@ def eval_net(net, loader, device, batch_size):
         else:
             f1_score = 0
 
-        print("Seuill :  ", seuill)
-        print("Dice : ", tot)
-        print("Jaccard: ", jacc_score)
+        print("Dice: ", dice)
+        print("Jaccard_score: ", jacc_score)
         print("Accuracy: ", acc_score)
-        print("Pres :", pres_score)
+        print("Precision: ", pres_score)
         print("Recall: ", rec_score)
-        print("F1_score ", f1_score)
-    np.save("trueDetection.py", trueDetection)
-    np.save("falseDetection.py", falseDetection)
-    return tot, jacc_score, acc_score, pres_score, rec_score, f1_score
+        print("F1_score: ", f1_score)
+    return dice, jacc_score, acc_score, pres_score, rec_score, f1_score
+
 def get_args():
     parser = argparse.ArgumentParser(description='Predict masks from input images',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -99,7 +88,7 @@ def get_args():
 
     parser.add_argument('--mask-threshold', '-t', type=float,
                         help="Minimum probability value to consider a mask pixel white",
-                        default=0.5)
+                        default=0.5, dest='threshold')
 
     parser.add_argument('--scale', '-s', type=float,
                         help="Scale factor for the input images",
@@ -138,4 +127,4 @@ if __name__ == "__main__":
 
     myLoader = DataLoader(testSet, batch_size=args.batchsize, shuffle=False, num_workers=8, pin_memory=True)
 
-    eval_net(net=myNet, loader=myLoader, device=myDevice, batch_size=args.batchsize)
+    eval_net(net=myNet, loader=myLoader, device=myDevice, batch_size=args.batchsize, threshold=args.threshold)

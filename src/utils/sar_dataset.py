@@ -2,14 +2,14 @@ import os
 import scipy.io as sio
 from tqdm import tqdm
 import numpy as np
-#from sklearn.feature_extraction import image
+
 
 class SarDataset():
     #PATCH_SIZE = 32
     INPUT_PATH = "../data/Raw_DATA/"#"./drive/My Drive/Raw_DATA"
     EXTRACTION_PATH = "../data/Ext_DATA/"
     NORMALIZATION_PATH = "../data/Nor_DATA/"
-    DATASET_PATH = "/content/drive/My Drive/dataset/train/"
+    DATASET_PATH = "../dataset/train/"
     data_counter = 0
 
     mean_vv = 0
@@ -24,7 +24,7 @@ class SarDataset():
                 try:
                     path = os.path.join(self.INPUT_PATH, f)
                     sarData = sio.loadmat(path)
-                    for num_data in range(1): #range(sarData["array_segmentation"].shape[2]):
+                    for num_data in range(sarData["array_segmentation"].shape[2]):
                         img_vv = sarData["images_choisiesVV"][:,:,num_data]
                         img_vh = sarData["images_choisiesVH"][:,:,num_data]
                         img_gt = sarData["array_segmentation"][:,:,num_data]

@@ -17,7 +17,7 @@ from utils.sar_dataset_loader import BasicDataset
 from torch.utils.data import DataLoader, random_split
 
 dataset_dir = './data/dataset/' #execute from drive ==> '/content/drive/My Drive/dataset/'
-dir_checkpoint = './model_checkpoints/'
+dir_checkpoint = './Model/'
 
 
 def train_net(net,
